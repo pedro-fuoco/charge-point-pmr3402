@@ -4,9 +4,9 @@
 
 /************************
  rele_setup
- Configura a sirene
+ Configura o rele
  entradas
-   pin: pino da sirene
+   pin: pino do rele
  saidas
    nenhuma
 *************************/

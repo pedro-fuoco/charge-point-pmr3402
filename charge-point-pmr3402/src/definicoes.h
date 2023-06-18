@@ -1,8 +1,6 @@
 #ifndef DEFINICOES_H_INCLUDED
 #define DEFINICOES_H_INCLUDED
 
-#define LOW 0
-#define HIGH 1
 
 #define NUM_ESTADOS 5
 #define NUM_EVENTOS 10

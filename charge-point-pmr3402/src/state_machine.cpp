@@ -1,8 +1,8 @@
+#include <Arduino.h>
 #include "definicoes.h"
 #include "rele.h"
 #include "leds.h"
-
-
+#include "pzem.h"
 
 
 /***********************************************************************
@@ -21,12 +21,15 @@
  Variáveis globais
  ***********************************************************************/
   int codigoEvento = NENHUM_EVENTO;
-  int eventoInterno = NENHUM_EVENTO;
+  int eventoInterno = NENHUM_EVENTO; 
   int estado = DESCONECTADO;
   int codigoAcao;
   int acao_matrizTransicaoEstados[NUM_ESTADOS][NUM_EVENTOS];
   int proximo_estado_matrizTransicaoEstados[NUM_ESTADOS][NUM_EVENTOS];
-
+  unsigned long startMillis = 0;
+  unsigned long currentMillis = 0;
+  const unsigned long interval = 30000; // intervalo de 30s para leituras
+  float energia = 0;
 
 void iniciaSistema()
 {
@@ -105,16 +108,22 @@ int executarAcao(int codigoAcao)
         activate_leds(7);
         break;
      // switch
-    case A08:
+    case A08:           //carro plugado - ativar rele e iniciar contagem de tempo
         rele_activate();
+        startMillis = millis();
         break;
-    case A09:
-        //ler pzem e calcular energia consumida 
+    case A09:           //carro plugado - atualizar dados
+        currentMillis = millis();                                    //ler pzem e calcular energia consumida 
+        if(currentMillis - startMillis > interval){
+            energia += read_voltage() * read_current() * (interval/1000);       //incrementa energia com V*I*delta_t
+            startMillis = currentMillis;
+        }
         break;
     case A10:
         rele_deactivate();
         break;
     }
+    return retval;
 } // executarAcao
 
 
@@ -146,7 +155,19 @@ int obterProximoEstado(int estado, int codigoEvento) {
 int obterEvento()           //completar
 {
   int retval = NENHUM_EVENTO;
+  //(...) outros eventos 
 
+  if(estado == CARREGAMENTO_LIBERADO && read_current() > 0.0f){         //talvez adicionar tolerancia
+    return PLUGAR_CARRO;
+  }
+  if(estado == CARREGAMENTO_PROGRESSO && read_current() > 0.0f){
+    return ATUALIZAR_DADOS;
+  }
+  if(estado == CARREGAMENTO_PROGRESSO && read_current() == 0.0f){
+    return DESPLUGAR_CARRO;
+  }
+
+  return retval;
 
 
 } // obterEvento
@@ -156,9 +177,19 @@ void setup() {
   iniciaSistema();
   rele_setup(RELE_PIN);
   leds_setup(LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN, LED7_PIN);
-
 }
 
 void loop() {
-    codigoEvento = obterEvento();
+
+  if (eventoInterno == NENHUM_EVENTO) {
+      codigoEvento = obterEvento();
+  } else {
+      codigoEvento = eventoInterno;
+  }
+  if (codigoEvento != NENHUM_EVENTO)
+  {
+      codigoAcao = obterAcao(estado, codigoEvento);
+      estado = obterProximoEstado(estado, codigoEvento);
+      eventoInterno = executarAcao(codigoAcao);
+  }
 }

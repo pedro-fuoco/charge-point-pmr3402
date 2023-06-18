@@ -4,7 +4,6 @@
 
 #define N_LEDS 7
 
-
 /************************
  leds_setup
  Configura os leds 
