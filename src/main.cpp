@@ -240,7 +240,7 @@ void taskOcpp(void *pvParameters){
     }
 
     if (touchedRFID()) {
-        String idTag = "0123456789ABCD"; //e.g. idTag = RFID.readIdTag();
+        String idTag = getRFID(); //e.g. idTag = RFID.readIdTag();
         if (!getTransactionIdTag()) {
             //no idTag registered yet. Start a new transaction
             authorize(idTag.c_str(), [idTag, &codigoEvento] (JsonObject response) {
