@@ -19,7 +19,7 @@ PZEM004Tv30 pzem(Serial2, 16, 17);
    nenhuma
 *************************/
 float read_power(){
-    return 11.0; //return pzem.power();
+    return pzem.power(); //return pzem.power();
 }
 
 /************************
