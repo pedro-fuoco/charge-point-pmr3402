@@ -7,6 +7,7 @@
 #include "rele.h"
 #include "leds.h"
 #include "pzem.h"
+#include "RFID.h"
 
 /***********************************************************************
  Definições dos pinos
@@ -47,8 +48,8 @@ void iniciaSistema()
        proximo_estado_matrizTransicaoEstados[i][j] = i;
     }
   }
-  proximo_estado_matrizTransicaoEstados[DESCONECTADO][CONECTOU_SERVIDOR] = INOPERATIVO;
-  acao_matrizTransicaoEstados[DESCONECTADO][CONECTOU_SERVIDOR] = A01;
+  proximo_estado_matrizTransicaoEstados[DESCONECTADO][CONECTAR_SERVIDOR] = INOPERATIVO;
+  acao_matrizTransicaoEstados[DESCONECTADO][CONECTAR_SERVIDOR] = A01;
 
   proximo_estado_matrizTransicaoEstados[INOPERATIVO][CONEXAO_FALHA] = DESCONECTADO;
   acao_matrizTransicaoEstados[INOPERATIVO][DESCONECTADO] = A02;
@@ -178,35 +179,31 @@ void taskMaquinaEstados(void *pvParameters){
 }
 
 void taskOcpp(void *pvParameters){
-  Serial.begin(115200);
-
   int codigoEvento;
-  int ultimoCodigoEvento;
-    
+  int operationStatus = 0; // INOPERATIVO
+  int pluggedStatus = 0; //DESPLUGADO
   Serial.print(F("[main] Wait for WiFi: "));
-
-
-
   WiFi.begin(STASSID, STAPSK);
   while (!WiFi.isConnected()) {
       Serial.print('.');
       delay(1000);
   }
-
   Serial.println(F(" connected!"));
 
   OCPP_initialize(OCPP_HOST, OCPP_PORT, OCPP_URL);
     
 
-  setEnergyMeterInput([]() {
-      //take the energy register of the main electricity meter and return the value in watt-hours
-      return 0.f;
+  setPowerMeterInput([]() {
+    //take the energy register of the main electricity meter and return the value in watt-hours
+    return 0.f;
   });
 
-  bootNotification("PROTOTIPO-01", "PMR3402");
-    
-  codigoEvento = CONECTOU_SERVIDOR;
-  xQueueSendToBack( xQueue, &codigoEvento, 0 );
+  bootNotification("PROTOTIPO-01", "PMR3402", [&codigoEvento] (JsonObject response) {
+    if (response["status"].as<String>().equals("Accepted")) {
+        codigoEvento = CONECTAR_SERVIDOR;
+        xQueueSendToBack( xQueue, &codigoEvento, 0 );
+    }
+  });
 
   while(true) // task loop
   {
@@ -218,18 +215,45 @@ void taskOcpp(void *pvParameters){
             Serial.print('.');
             delay(1000);
         }
-        codigoEvento = CONECTOU_SERVIDOR;
-        xQueueSendToBack( xQueue, &codigoEvento, 0 );
+        bootNotification("PROTOTIPO-01", "PMR3402", [&codigoEvento] (JsonObject response) {
+          if (response["status"].as<String>().equals("Accepted")) {
+            codigoEvento = CONECTAR_SERVIDOR;
+            xQueueSendToBack( xQueue, &codigoEvento, 0 );
+          }
+        });
     }
+
     OCPP_loop();
-    ultimoCodigoEvento = codigoEvento;
-    codigoEvento = NENHUM_EVENTO;
-    if (ocppPermitsCharge()) {
+
+    if (isOperative() != operationStatus)
+    {
+      if(isOperative())
+      {
         codigoEvento = TOTEM_LIBERADO;
-    } else {
+      }
+      else
+      {
         codigoEvento = TOTEM_BLOQUEADO;
+      }
+      xQueueSendToBack( xQueue, &codigoEvento, 0 );
     }
-    if (/* RFID chip detected? */ false) {
+    operationStatus = isOperative();
+
+
+    if (pluggedStatus) //!= isPlugged()
+    {
+      // if(isPlugged())
+      // {
+      //   codigoEvento = PLUGAR_CARRO;
+      // }
+      // else
+      // {
+      //   codigoEvento = DESPLUGAR_CARRO;
+      // }
+      // xQueueSendToBack( xQueue, &codigoEvento, 0 );
+    }
+
+    if (touchedRFID()) {
         String idTag = "0123456789ABCD"; //e.g. idTag = RFID.readIdTag();
         if (!getTransactionIdTag()) {
             //no idTag registered yet. Start a new transaction
@@ -239,6 +263,7 @@ void taskOcpp(void *pvParameters){
                     Serial.println(F("[main] User is authorized to start a transaction"));
                     auto ret = beginTransaction(idTag.c_str()); //begin Tx locally
                     codigoEvento = CARTAO_VALIDO;
+                    xQueueSendToBack( xQueue, &codigoEvento, 0 );
                     if (ret) {
                         Serial.println(F("[main] Transaction initiated. StartTransaction will be sent when ConnectorPlugged Input becomes true"));
                     } else {
@@ -247,6 +272,7 @@ void taskOcpp(void *pvParameters){
                 } else {
                     Serial.printf("[main] Authorize denied. Reason: %s\n", response["idTagInfo"]["status"] | "");
                     codigoEvento = CARTAO_INVALIDO;
+                    xQueueSendToBack( xQueue, &codigoEvento, 0 );
                 }
             });
             Serial.printf("[main] Authorizing user with idTag %s\n", idTag.c_str());
@@ -256,26 +282,27 @@ void taskOcpp(void *pvParameters){
                 //card matches -> user can stop Tx
                 Serial.println(F("[main] End transaction by RFID card"));
                 codigoEvento = CANCELAMENTO;
+                xQueueSendToBack( xQueue, &codigoEvento, 0 );
                 endTransaction();
             } else {
                 Serial.println(F("[main] Cannot end transaction by RFID card (different card?)"));
             }
         }
-    }
-    
-    if (ultimoCodigoEvento != codigoEvento)
-    {
-      xQueueSendToBack( xQueue, &codigoEvento, 0 );
-    }
+    } 
   }
 }
 
 
 void setup() {
-  iniciaSistema();
+  Serial.begin(115200);
+
   // setups
+  iniciaSistema();
   rele_setup(RELE_PIN);
   leds_setup(LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN, LED7_PIN);
+  setupRFID();
+
+
   xQueue = xQueueCreate(5, sizeof(int));
 
   xTaskCreate(taskMaquinaEstados,"taskMaquinaEstados", 1500, NULL, 0, NULL);

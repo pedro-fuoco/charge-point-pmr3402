@@ -1,26 +1,16 @@
-#include <Arduino.h>
-/*
- * This ESP32 code is created by esp32io.com
- *
- * This ESP32 code is released in the public domain
- *
- * For more detail (instruction and wiring diagram), visit https://esp32io.com/tutorials/esp32-rfid-nfc
- */
-
-#include <SPI.h>
-#include <MFRC522.h>
-
-#define SS_PIN 5  // ESP32 pin GIOP5 
-#define RST_PIN 22 // ESP32 pin GIOP27 
+#include "RFID.h"
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 void setupRFID() {
-  Serial.begin(115200);
   SPI.begin(); // init SPI bus
   rfid.PCD_Init(); // init MFRC522
 
   Serial.println("Tap an RFID/NFC tag on the RFID-RC522 reader");
+}
+
+int touchedRFID() {
+  return rfid.PICC_IsNewCardPresent();
 }
 
 void getRFID() {
@@ -33,7 +23,6 @@ void getRFID() {
       // print UID in Serial Monitor in the hex format
       Serial.print("UID:");
       for (int i = 0; i < rfid.uid.size; i++) {
-        //Serial.print(rfid.uid.uidByte[i] < 0x10 ? " 0" : " ");
         Serial.print(rfid.uid.uidByte[i], HEX);
       }
       Serial.println();
