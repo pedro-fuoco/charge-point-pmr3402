@@ -15,26 +15,14 @@ PZEM004Tv30 pzem(Serial2);
 
 
 /************************
- read_voltage
- Retorna leitura da voltagem pelo pzem 
+ read_power
+ Retorna leitura da potência pelo pzem 
  entradas
    nenhuma
  saidas
    nenhuma
 *************************/
-float read_voltage(){
-    return pzem.voltage();
+float read_power(){
+    return pzem.power();
 }
 
-
-/************************
- read_current
- Retorna leitura da corrente pelo pzem
- entradas
-   nenhuma
- saidas
-   nenhuma
-*************************/
-float read_current(){
-    return pzem.current();
-}
