@@ -19,6 +19,17 @@ PZEM004Tv30 pzem(Serial2, 16, 17);
    nenhuma
 *************************/
 float read_power(){
-    return pzem.power();
+    return 11.0; //return pzem.power();
 }
 
+/************************
+ isPluggged
+ Retorna caso o carro esteja sendo carregado
+ entradas
+   nenhuma
+ saidas
+   nenhuma
+*************************/
+int isPlugged(){
+    return pzem.power() > 0;
+}

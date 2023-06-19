@@ -14,5 +14,15 @@
 extern float read_power();
 
 
+/************************
+ isPluggged
+ Retorna caso o carro esteja sendo carregado
+ entradas
+   nenhuma
+ saidas
+   nenhuma
+*************************/
+extern int isPlugged();
+
 
 #endif
