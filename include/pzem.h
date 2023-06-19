@@ -4,25 +4,14 @@
 
 
 /************************
- read_voltage
- Retorna leitura da voltagem pelo pzem 
+ read_power
+ Retorna leitura da potência pelo pzem 
  entradas
    nenhuma
  saidas
    nenhuma
 *************************/
-extern float read_voltage();
-
-
-/************************
- read_current
- Retorna leitura da corrente pelo pzem
- entradas
-   nenhuma
- saidas
-   nenhuma
-*************************/
-extern float read_current();
+extern float read_power();
 
 
 

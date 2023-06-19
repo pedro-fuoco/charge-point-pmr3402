@@ -2,24 +2,22 @@
 #define LEDS_H_INCLUDED
 
 
-#define N_LEDS 7
-
 /************************
  leds_setup
  Configura os leds 
  entradas
-   pin i: pino do led i
+   pin i: pinos das cores vermelho, verde e azul
  saidas
    nenhuma
 *************************/
-extern void leds_setup(int pin1, int pin2, int pin3, int pin4, int pin5, int pin6, int pin7);
+extern void leds_setup(int pin1, int pin2, int pin3);
 
 
 /************************
  activate_leds
- Liga um led específico e desliga os demais 
+ Acende o led strip uma com uma cor especifica
  entradas
-   n: led que se deseja acender
+   n: número cuja representação em binário determina a combinação de cores 
  saidas
    nenhuma
 *************************/
