@@ -53,8 +53,8 @@ void iniciaSistema()
   proximo_estado_matrizTransicaoEstados[INOPERATIVO][TOTEM_LIBERADO] = CHECANDO_CARTOES;
   acao_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = A03;
 
-  proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][TOTEM_BLOQUEADO] = INOPERATIVO;
-  acao_matrizTransicaoEstados[CHECANDO_CARTOES][TOTEM_BLOQUEADO] = A04;
+  proximo_estado_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = INOPERATIVO;
+  acao_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = A04;
 
   proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_VALIDO] = CARREGAMENTO_LIBERADO;
   acao_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_VALIDO] = A05;
@@ -98,17 +98,17 @@ int executarAcao(int codigoAcao)
         activate_leds(4);
         break;
     case A05:
-        rele_activate();
-        break;
-    case A06:
         activate_leds(5);
         break;
+    case A06:
+        activate_leds(6);
+        break;
     case A07:
-        rele_deactivate();
+        activate_leds(7);
         break;
      // switch
-    case A08:    
-        activate_leds(7);
+    case A08:           //carro plugado - ativar rele e iniciar contagem de tempo
+        rele_activate();
         break;
     case A09:
         rele_deactivate();
@@ -154,7 +154,7 @@ void taskMaquinaEstados(void *pvParameters){
         executarAcao(codigoAcao);
         Serial.print("Estado: "); Serial.print(estado);
         Serial.print(" Evento: "); Serial.print(codigoEvento);
-        Serial.print(" Acao: "); Serial.println(codigoAcao);
+        Serial.print("Acao: "); Serial.println(codigoAcao);
       }
     }
     else {
@@ -192,8 +192,6 @@ void taskOcpp(void *pvParameters){
 
   while(true) // task loop
   {
-    OCPP_loop();
-    
     if (!WiFi.isConnected())
     {
         codigoEvento = CONEXAO_FALHA;
@@ -210,6 +208,7 @@ void taskOcpp(void *pvParameters){
         });
     }
 
+    OCPP_loop();
 
     if (isOperative() != operationStatus)
     {
@@ -226,11 +225,18 @@ void taskOcpp(void *pvParameters){
     operationStatus = isOperative();
 
 
-    // if (isTransactionRunning()) //!= isPlugged()
-    // {
-    //   codigoEvento = PLUGAR_CARRO;
-    //   xQueueSendToBack( xQueue, &codigoEvento, 0 );
-    // }
+    if (pluggedStatus != isPlugged())
+    {
+      if(isPlugged())
+      {
+        codigoEvento = PLUGAR_CARRO;
+      }
+      else
+      {
+        codigoEvento = DESPLUGAR_CARRO;
+      }
+      xQueueSendToBack( xQueue, &codigoEvento, 0 );
+    }
 
     if (touchedRFID() && isOperative()) {
         String idTag = getRFID(); //e.g. idTag = RFID.readIdTag();
