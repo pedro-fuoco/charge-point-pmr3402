@@ -12,13 +12,9 @@
  Definições dos pinos
  ***********************************************************************/
 #define RELE_PIN 27
-#define LED1_PIN 16
-#define LED2_PIN 17
-#define LED3_PIN 18
-#define LED4_PIN 19
-#define LED5_PIN 20
-#define LED6_PIN 21
-#define LED7_PIN 22
+#define BLUEPIN 25
+#define REDPIN 33
+#define GREENPIN 32
 
 /***********************************************************************
  Variáveis globais
@@ -71,11 +67,8 @@ void iniciaSistema()
   proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][PLUGAR_CARRO] = CARREGAMENTO_PROGRESSO;
   acao_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][PLUGAR_CARRO] = A08;
 
-  proximo_estado_matrizTransicaoEstados[CARREGAMENTO_PROGRESSO][ATUALIZAR_DADOS] = CARREGAMENTO_PROGRESSO;
-  acao_matrizTransicaoEstados[CARREGAMENTO_PROGRESSO][ATUALIZAR_DADOS] = A09;
-
   proximo_estado_matrizTransicaoEstados[CARREGAMENTO_PROGRESSO][DESPLUGAR_CARRO] = CHECANDO_CARTOES;
-  acao_matrizTransicaoEstados[CARREGAMENTO_PROGRESSO][DESPLUGAR_CARRO] = A10;
+  acao_matrizTransicaoEstados[CARREGAMENTO_PROGRESSO][DESPLUGAR_CARRO] = A09;
 
 } // initStateMachine
 
@@ -115,16 +108,9 @@ int executarAcao(int codigoAcao)
      // switch
     case A08:           //carro plugado - ativar rele e iniciar contagem de tempo
         rele_activate();
-        startMillis = millis();
+        //startMillis = millis();
         break;
-    case A09:           //carro plugado - atualizar dados
-        currentMillis = millis();                                    //ler pzem e calcular energia consumida 
-        if(currentMillis - startMillis > interval){
-            energia += read_voltage() * read_current() * (interval/1000);       //incrementa energia com V*I*delta_t
-            startMillis = currentMillis;
-        }
-        break;
-    case A10:
+    case A09:
         rele_deactivate();
         break;
     }
@@ -275,7 +261,7 @@ void setup() {
   iniciaSistema();
   // setups
   rele_setup(RELE_PIN);
-  leds_setup(LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN, LED7_PIN);
+  leds_setup(REDPIN, BLUEPIN, GREENPIN);
   xQueue = xQueueCreate(5, sizeof(int));
 
   xTaskCreate(taskMaquinaEstados,"taskMaquinaEstados", 1500, NULL, 0, NULL);

@@ -3,36 +3,44 @@
 #include "definicoes.h"
 #include "leds.h"
 
+int pinR;
+int pinG;
+int pinB;
 
-int led_pins[N_LEDS];
 
 
-
-
-void leds_setup(int pin1, int pin2, int pin3, int pin4, int pin5, int pin6, int pin7){
-    led_pins[0] = pin1;
-    led_pins[1] = pin2;
-    led_pins[2] = pin3;
-    led_pins[3] = pin4;
-    led_pins[4] = pin5;
-    led_pins[5] = pin6;
-    led_pins[6] = pin7;
-
-    for (int i = 0; i < N_LEDS; i++) {
-        pinMode(led_pins[i], OUTPUT);
-    }
+/************************
+ leds_setup
+ Configura os leds 
+ entradas
+   pin i: pinos das cores vermelho, verde e azul
+ saidas
+   nenhuma
+*************************/
+void leds_setup(int pin1, int pin2, int pin3){
+    pinR = pin1;
+    pinG = pin1;
+    pinB = pin1;
+    pinMode(pinR, OUTPUT);
+    pinMode(pinB, OUTPUT);
+    pinMode(pinG, OUTPUT);    
 }
 
-
-void activate_leds(int n){
-    for(int i = 0; i < N_LEDS; i++){
-        if(i == n - 1){
-            digitalWrite(led_pins[i], HIGH);
-        }
-        else{
-            digitalWrite(led_pins[i], LOW);
-        }
-    }
+/************************
+ activate_leds
+ Acende o led strip uma com uma cor especifica
+ entradas
+   n: número cuja representação em binário determina a combinação de cores 
+ saidas
+   nenhuma
+*************************/
+void activate_leds(int n){ // n varia de 1 a 7
+    int bit0 = (n & 0b001); 
+    int bit1 = (n & 0b010) >> 1;
+    int bit2 = (n & 0b100) >> 2;
+    digitalWrite(pinR, bit0);
+    digitalWrite(pinG, bit1);
+    digitalWrite(pinB, bit2);    
 }
 
 
