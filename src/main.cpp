@@ -12,13 +12,13 @@
  Definições dos pinos
  ***********************************************************************/
 #define RELE_PIN 27
-#define LED1_PIN 1
-#define LED2_PIN 2
-#define LED3_PIN 3
-#define LED4_PIN 4
-#define LED5_PIN 5
-#define LED6_PIN 6
-#define LED7_PIN 7
+#define LED1_PIN 16
+#define LED2_PIN 17
+#define LED3_PIN 18
+#define LED4_PIN 19
+#define LED5_PIN 20
+#define LED6_PIN 21
+#define LED7_PIN 22
 
 /***********************************************************************
  Variáveis globais
@@ -47,8 +47,8 @@ void iniciaSistema()
        proximo_estado_matrizTransicaoEstados[i][j] = i;
     }
   }
-  proximo_estado_matrizTransicaoEstados[DESCONECTADO][CONECTAR_SERVIDOR] = INOPERATIVO;
-  acao_matrizTransicaoEstados[DESCONECTADO][CONECTAR_SERVIDOR] = A01;
+  proximo_estado_matrizTransicaoEstados[DESCONECTADO][CONECTOU_SERVIDOR] = INOPERATIVO;
+  acao_matrizTransicaoEstados[DESCONECTADO][CONECTOU_SERVIDOR] = A01;
 
   proximo_estado_matrizTransicaoEstados[INOPERATIVO][CONEXAO_FALHA] = DESCONECTADO;
   acao_matrizTransicaoEstados[INOPERATIVO][DESCONECTADO] = A02;
@@ -156,33 +156,6 @@ int obterProximoEstado(int estado, int codigoEvento) {
 } // obterAcao
 
 
-void taskObterEvento(void *pvParameters){
-  BaseType_t xStatus;
-  int retval = NENHUM_EVENTO;
-  
-  for (;;)
-  {
-    if(estado == CARREGAMENTO_LIBERADO && read_current() > 0.0f){    
-      xStatus = xQueueSendToBack( xQueue, &codigoEvento, 0 );
-        if( xStatus != pdPASS )
-          Serial.println("Erro ao enviar evento para fila");
-        continue;     
-    }
-    if(estado == CARREGAMENTO_PROGRESSO && read_current() > 0.0f){
-      xStatus = xQueueSendToBack( xQueue, &codigoEvento, 0 );
-        if( xStatus != pdPASS )
-          Serial.println("Erro ao enviar evento para fila");
-        continue;
-    }
-    if(estado == CARREGAMENTO_PROGRESSO && read_current() == 0.0f){
-      xStatus = xQueueSendToBack( xQueue, &codigoEvento, 0 );
-        if( xStatus != pdPASS )
-          Serial.println("Erro ao enviar evento para fila");
-        continue;
-    }
-  }
-}
-
 void taskMaquinaEstados(void *pvParameters){
   int codigoEvento;
 
@@ -205,7 +178,96 @@ void taskMaquinaEstados(void *pvParameters){
 }
 
 void taskOcpp(void *pvParameters){
-    charger_loop();
+  Serial.begin(115200);
+
+  int codigoEvento;
+  int ultimoCodigoEvento;
+    
+  Serial.print(F("[main] Wait for WiFi: "));
+
+
+
+  WiFi.begin(STASSID, STAPSK);
+  while (!WiFi.isConnected()) {
+      Serial.print('.');
+      delay(1000);
+  }
+
+  Serial.println(F(" connected!"));
+
+  OCPP_initialize(OCPP_HOST, OCPP_PORT, OCPP_URL);
+    
+
+  setEnergyMeterInput([]() {
+      //take the energy register of the main electricity meter and return the value in watt-hours
+      return 0.f;
+  });
+
+  bootNotification("PROTOTIPO-01", "PMR3402");
+    
+  codigoEvento = CONECTOU_SERVIDOR;
+  xQueueSendToBack( xQueue, &codigoEvento, 0 );
+
+  while(true) // task loop
+  {
+    if (!WiFi.isConnected())
+    {
+        codigoEvento = CONEXAO_FALHA;
+        xQueueSendToBack( xQueue, &codigoEvento, 0 );
+        while (!WiFi.isConnected()) {
+            Serial.print('.');
+            delay(1000);
+        }
+        codigoEvento = CONECTOU_SERVIDOR;
+        xQueueSendToBack( xQueue, &codigoEvento, 0 );
+    }
+    OCPP_loop();
+    ultimoCodigoEvento = codigoEvento;
+    codigoEvento = NENHUM_EVENTO;
+    if (ocppPermitsCharge()) {
+        codigoEvento = TOTEM_LIBERADO;
+    } else {
+        codigoEvento = TOTEM_BLOQUEADO;
+    }
+    if (/* RFID chip detected? */ false) {
+        String idTag = "0123456789ABCD"; //e.g. idTag = RFID.readIdTag();
+        if (!getTransactionIdTag()) {
+            //no idTag registered yet. Start a new transaction
+            authorize(idTag.c_str(), [idTag, &codigoEvento] (JsonObject response) {
+                //check if user with idTag is authorized
+                if (!strcmp("Accepted", response["idTagInfo"]["status"] | "Invalid")){
+                    Serial.println(F("[main] User is authorized to start a transaction"));
+                    auto ret = beginTransaction(idTag.c_str()); //begin Tx locally
+                    codigoEvento = CARTAO_VALIDO;
+                    if (ret) {
+                        Serial.println(F("[main] Transaction initiated. StartTransaction will be sent when ConnectorPlugged Input becomes true"));
+                    } else {
+                        Serial.println(F("[main] No transaction initiated"));
+                    }
+                } else {
+                    Serial.printf("[main] Authorize denied. Reason: %s\n", response["idTagInfo"]["status"] | "");
+                    codigoEvento = CARTAO_INVALIDO;
+                }
+            });
+            Serial.printf("[main] Authorizing user with idTag %s\n", idTag.c_str());
+        } else {
+            //Transaction already initiated. Check if to stop current Tx by RFID card
+            if (idTag.equals(getTransactionIdTag())) {
+                //card matches -> user can stop Tx
+                Serial.println(F("[main] End transaction by RFID card"));
+                codigoEvento = CANCELAMENTO;
+                endTransaction();
+            } else {
+                Serial.println(F("[main] Cannot end transaction by RFID card (different card?)"));
+            }
+        }
+    }
+    
+    if (ultimoCodigoEvento != codigoEvento)
+    {
+      xQueueSendToBack( xQueue, &codigoEvento, 0 );
+    }
+  }
 }
 
 
@@ -214,14 +276,12 @@ void setup() {
   // setups
   rele_setup(RELE_PIN);
   leds_setup(LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN, LED7_PIN);
-  ocpp_setup();
   xQueue = xQueueCreate(5, sizeof(int));
 
-  TaskHandle_t xNullHandle = NULL;
-  xTaskCreate(taskMaquinaEstados,"taskMaquinaEstados", 1500, NULL, 1, &xNullHandle);
-  xTaskCreate(taskObterEvento,"taskObterEvento", 1000, NULL, 1, &xNullHandle);
-  xTaskCreate(taskOcpp,"taskOcpp", 1000, NULL, 1, &xNullHandle);
-  vTaskStartScheduler();
+  xTaskCreate(taskMaquinaEstados,"taskMaquinaEstados", 1500, NULL, 0, NULL);
+  xTaskCreate(taskOcpp,"taskOcpp", 30000, NULL, 0, NULL);
 }
 
-void loop() {}
+void loop()
+{
+}
