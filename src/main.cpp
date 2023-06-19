@@ -62,7 +62,7 @@ void iniciaSistema()
   proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_INVALIDO] = CHECANDO_CARTOES;
   acao_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_INVALIDO] = A06;
 
-  proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = CARREGAMENTO_PROGRESSO;
+  proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = CHECANDO_CARTOES;
   acao_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = A07;
 
   proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][PLUGAR_CARRO] = CARREGAMENTO_PROGRESSO;
