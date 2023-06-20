@@ -13,9 +13,9 @@
  Definições dos pinos
  ***********************************************************************/
 #define RELE_PIN 27
-#define BLUEPIN 25
-#define REDPIN 33
-#define GREENPIN 32
+#define REDPIN 25 //led vermelho
+#define GREENPIN 33 //led amarelo
+#define YELLOWPIN 32
 
 /***********************************************************************
  Variáveis globais
@@ -48,13 +48,13 @@ void iniciaSistema()
   acao_matrizTransicaoEstados[DESCONECTADO][CONECTAR_SERVIDOR] = A01;
 
   proximo_estado_matrizTransicaoEstados[INOPERATIVO][CONEXAO_FALHA] = DESCONECTADO;
-  acao_matrizTransicaoEstados[INOPERATIVO][DESCONECTADO] = A02;
+  acao_matrizTransicaoEstados[INOPERATIVO][CONEXAO_FALHA] = A02;
 
   proximo_estado_matrizTransicaoEstados[INOPERATIVO][TOTEM_LIBERADO] = CHECANDO_CARTOES;
-  acao_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = A03;
+  acao_matrizTransicaoEstados[INOPERATIVO][TOTEM_LIBERADO] = A03;
 
-  proximo_estado_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = INOPERATIVO;
-  acao_matrizTransicaoEstados[INOPERATIVO][TOTEM_BLOQUEADO] = A04;
+  proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][TOTEM_BLOQUEADO] = INOPERATIVO;
+  acao_matrizTransicaoEstados[CHECANDO_CARTOES][TOTEM_BLOQUEADO] = A04;
 
   proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_VALIDO] = CARREGAMENTO_LIBERADO;
   acao_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_VALIDO] = A05;
@@ -62,7 +62,7 @@ void iniciaSistema()
   proximo_estado_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_INVALIDO] = CHECANDO_CARTOES;
   acao_matrizTransicaoEstados[CHECANDO_CARTOES][CARTAO_INVALIDO] = A06;
 
-  proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = CARREGAMENTO_PROGRESSO;
+  proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = CHECANDO_CARTOES;
   acao_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][CANCELAMENTO] = A07;
 
   proximo_estado_matrizTransicaoEstados[CARREGAMENTO_LIBERADO][PLUGAR_CARRO] = CARREGAMENTO_PROGRESSO;
@@ -86,33 +86,34 @@ int executarAcao(int codigoAcao)
     switch(codigoAcao)
     {
     case A01:
-        activate_leds(1);
-        break;
-    case A02:
-        activate_leds(2);
-        break;
-    case A03:
         activate_leds(3);
         break;
+    case A02:
+        activate_leds(1);
+        break;
+    case A03:
+        activate_leds(2);
+        break;
     case A04:
-        activate_leds(4);
+        activate_leds(1);
         break;
     case A05:
-        activate_leds(5);
+        rele_activate();
         break;
     case A06:
-        activate_leds(6);
+        activate_leds(1);
         break;
     case A07:
-        activate_leds(7);
+        //activate_leds(3);
+        rele_deactivate();
         break;
      // switch
     case A08:           //carro plugado - ativar rele e iniciar contagem de tempo
-        rele_activate();
-        //startMillis = millis();
+        activate_leds(2);
         break;
     case A09:
         rele_deactivate();
+        activate_leds(2);
         break;
     }
     return retval;
@@ -226,21 +227,25 @@ void taskOcpp(void *pvParameters){
     operationStatus = isOperative();
 
 
-    if (pluggedStatus) //!= isPlugged()
+    if (pluggedStatus != isPlugged())
     {
-      // if(isPlugged())
-      // {
-      //   codigoEvento = PLUGAR_CARRO;
-      // }
-      // else
-      // {
-      //   codigoEvento = DESPLUGAR_CARRO;
-      // }
-      // xQueueSendToBack( xQueue, &codigoEvento, 0 );
+      if(isPlugged())
+      {
+        codigoEvento = PLUGAR_CARRO;
+      }
+      else
+      {
+        codigoEvento = DESPLUGAR_CARRO;
+      }
+      xQueueSendToBack( xQueue, &codigoEvento, 0 );
     }
-
-    if (touchedRFID()) {
-        String idTag = "0123456789ABCD"; //e.g. idTag = RFID.readIdTag();
+    pluggedStatus = isPlugged();
+    //Serial.print("Is plugged: ");
+    //Serial.println(isPlugged());'
+    //Serial.print("Current : ");
+    //Serial.println(read_current());
+    if (touchedRFID() && isOperative()) {
+        String idTag = getRFID(); //e.g. idTag = RFID.readIdTag();
         if (!getTransactionIdTag()) {
             //no idTag registered yet. Start a new transaction
             authorize(idTag.c_str(), [idTag, &codigoEvento] (JsonObject response) {
@@ -285,7 +290,7 @@ void setup() {
   // setups
   iniciaSistema();
   rele_setup(RELE_PIN);
-  leds_setup(REDPIN, BLUEPIN, GREENPIN);
+  leds_setup(REDPIN, GREENPIN, YELLOWPIN);
   setupRFID();
 
 

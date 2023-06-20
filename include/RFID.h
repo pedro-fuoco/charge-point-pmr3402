@@ -7,4 +7,4 @@
 
 void setupRFID();
 int touchedRFID();
-void getRFID();
+String getRFID();

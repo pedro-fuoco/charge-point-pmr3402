@@ -36,10 +36,10 @@
 #define A02 1 //acender led_strip com 2     
 #define A03 2 //acender led_strip com 3    
 #define A04 3 //acender led_strip com 4    
-#define A05 4 //acender led_strip com 5    
-#define A06 5 //acender led_strip com 6    
-#define A07 6 //acender led_strip com 7  
-#define A08 7 //liberar rele (evento plugar_carro)
+#define A05 4 //liberar rele (evento cartao_liberado)
+#define A06 5 //acender led_strip com 5    
+#define A07 6 //acender led_strip com 6  
+#define A08 7 //acender led_strip com 7
 #define A09 8 //desativar o relê (evento desplugar_carro )
 
 

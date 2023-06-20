@@ -7,11 +7,7 @@
  * Pin D1 Rx (Connects to the Tx pin on the PZEM)
  * Pin D2 Tx (Connects to the Rx pin on the PZEM)
 */
-#if defined(ESP32)
 PZEM004Tv30 pzem(Serial2, 16, 17);
-#else
-PZEM004Tv30 pzem(Serial2);
-#endif
 
 
 /************************
@@ -23,6 +19,28 @@ PZEM004Tv30 pzem(Serial2);
    nenhuma
 *************************/
 float read_power(){
-    return pzem.power();
+    return pzem.power(); //return pzem.power();
 }
 
+/************************
+ read_power
+ Retorna leitura da corrente pelo pzem 
+ entradas
+   nenhuma
+ saidas
+   nenhuma
+*************************/
+float read_current(){
+    return pzem.current(); //return pzem.power();
+}
+/************************
+ isPluggged
+ Retorna caso o carro esteja sendo carregado
+ entradas
+   nenhuma
+ saidas
+   nenhuma
+*************************/
+int isPlugged(){
+    return !isnan(pzem.power());
+}
