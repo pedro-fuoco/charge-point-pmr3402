@@ -169,6 +169,7 @@ void taskOcpp(void *pvParameters){
   int codigoEvento;
   int operationStatus = 0; // INOPERATIVO
   int pluggedStatus = 0; //DESPLUGADO
+  int plugAux = 0;
   Serial.print(F("[main] Wait for WiFi: "));
   WiFi.begin(STASSID, STAPSK);
   while (!WiFi.isConnected()) {
@@ -212,7 +213,7 @@ void taskOcpp(void *pvParameters){
 
     OCPP_loop();
 
-    if (isOperative() != operationStatus)
+    if (operationStatus != isOperative())
     {
       if(isOperative())
       {
@@ -226,24 +227,22 @@ void taskOcpp(void *pvParameters){
     }
     operationStatus = isOperative();
 
-
-    if (pluggedStatus != isPlugged())
+    plugAux = isPlugged();
+    if (pluggedStatus != plugAux)
     {
-      if(isPlugged())
+      if(plugAux)
       {
         codigoEvento = PLUGAR_CARRO;
       }
       else
       {
         codigoEvento = DESPLUGAR_CARRO;
+        endTransaction();
       }
       xQueueSendToBack( xQueue, &codigoEvento, 0 );
     }
-    pluggedStatus = isPlugged();
-    //Serial.print("Is plugged: ");
-    //Serial.println(isPlugged());'
-    //Serial.print("Current : ");
-    //Serial.println(read_current());
+    pluggedStatus = plugAux;
+
     if (touchedRFID() && isOperative()) {
         String idTag = getRFID(); //e.g. idTag = RFID.readIdTag();
         if (!getTransactionIdTag()) {
